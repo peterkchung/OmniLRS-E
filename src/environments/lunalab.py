@@ -1,5 +1,7 @@
 __author__ = "Antoine Richard, Junnosuke Kamohara"
-__copyright__ = "Copyright 2023-24, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+__copyright__ = (
+    "Copyright 2023-24, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+)
 __license__ = "BSD 3-Clause"
 __version__ = "2.0.0"
 __maintainer__ = "Antoine Richard"
@@ -16,7 +18,10 @@ from pxr import UsdGeom, UsdLux, Gf, Usd
 
 from src.environments.monitoring_cameras_manager import MonitoringCamerasManager
 from src.environments.static_assets_manager import StaticAssetsManager
-from src.physics.terramechanics_parameters import RobotParameter, TerrainMechanicalParameter
+from src.physics.terramechanics_parameters import (
+    RobotParameter,
+    TerrainMechanicalParameter,
+)
 from src.terrain_management.large_scale_terrain.pxr_utils import set_xform_ops
 from src.configurations.procedural_terrain_confs import TerrainManagerConf
 from src.physics.terramechanics_solver import TerramechanicsSolver
@@ -25,6 +30,7 @@ from src.configurations.environments import LunalabConf
 from src.environments.rock_manager import RockManager
 from src.environments.base_env import BaseEnv
 from src.robots.robot import RobotManager
+from src.environments.dust_physics import DustManager
 from assets import get_assets_path
 
 
@@ -68,6 +74,7 @@ class LunalabController(BaseEnv):
         self.mask = None
         self.scene_name = "/Lunalab"
         self.deformation_conf = terrain_manager.moon_yard.deformation_engine
+        self.dust_manager = DustManager(terrain_manager.moon_yard.dust_physics)
         self.SAM = None
         self.MCM = None
 
@@ -118,6 +125,8 @@ class LunalabController(BaseEnv):
         # Fetches the interactive elements
         self.collect_interactive_assets()
         self.RM.build(self.dem, self.mask)
+        # Setup dust manager
+        self.dust_manager.setup()
         # Loads the DEM and the mask
         self.switch_terrain(0)
 
@@ -174,18 +183,26 @@ class LunalabController(BaseEnv):
         """
 
         # Projector
-        self._projector_prim = self.stage.GetPrimAtPath(self.stage_settings.projector_path)
+        self._projector_prim = self.stage.GetPrimAtPath(
+            self.stage_settings.projector_path
+        )
         self._projector_xform = UsdGeom.Xformable(self._projector_prim)
         self._projector_lux = self.get_lux_assets(self._projector_prim)
-        self._projector_flare = self.stage.GetPrimAtPath(self.stage_settings.projector_shader_path)
+        self._projector_flare = self.stage.GetPrimAtPath(
+            self.stage_settings.projector_shader_path
+        )
         # Room Lights
-        self._room_lights_prim = self.stage.GetPrimAtPath(self.stage_settings.room_lights_path)
+        self._room_lights_prim = self.stage.GetPrimAtPath(
+            self.stage_settings.room_lights_path
+        )
         self._room_lights_xform = UsdGeom.Xformable(self._room_lights_prim)
         self._room_lights_lux = self.get_lux_assets(self._room_lights_prim)
         # Curtains
         self._curtain_prims: Dict[str, Usd.Prim] = {}
         for key in self.stage_settings.curtains_path.keys():
-            self._curtain_prims[key] = self.stage.GetPrimAtPath(self.stage_settings.curtains_path[key])
+            self._curtain_prims[key] = self.stage.GetPrimAtPath(
+                self.stage_settings.curtains_path[key]
+            )
 
     # ==============================================================================
     # Projector control
@@ -207,7 +224,10 @@ class LunalabController(BaseEnv):
         px, py, pz = (position[0], position[1], position[2])
 
         set_xform_ops(
-            self._projector_xform, Gf.Vec3d(px, py, pz), Gf.Quatd(w, Gf.Vec3d(x, y, z)), Gf.Vec3d(1.0, 1.0, 1.0)
+            self._projector_xform,
+            Gf.Vec3d(px, py, pz),
+            Gf.Quatd(w, Gf.Vec3d(x, y, z)),
+            Gf.Vec3d(1.0, 1.0, 1.0),
         )
 
     def set_projector_intensity(self, intensity: float = 0.0) -> None:
@@ -230,7 +250,9 @@ class LunalabController(BaseEnv):
 
         self._projector_lux[0].GetAttribute("radius").Get(radius)
 
-    def set_projector_color(self, color: Tuple[float, float, float] = (1.0, 1.0, 1.0)) -> None:
+    def set_projector_color(
+        self, color: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    ) -> None:
         """
         Sets the color of the projector.
 
@@ -293,7 +315,9 @@ class LunalabController(BaseEnv):
         for light in self._room_lights_lux:
             light.GetAttribute("shaping:cone:angle").Set(FOV)
 
-    def set_room_lights_color(self, color: Tuple[float, float, float] = (1.0, 1.0, 1.0)) -> None:
+    def set_room_lights_color(
+        self, color: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    ) -> None:
         """
         Sets the color of the room lights.
 
@@ -379,30 +403,41 @@ class LunalabController(BaseEnv):
             num += 1
         self.RM.randomizeInstancers(num)
 
-    def deform_terrain(self) -> None:
+    def deform_terrain(self, dt: float = 0.0333) -> None:
         """
-        Deforms the terrain.
+        Deforms the terrain and updates dust physics.
         Args:
-            world_poses (np.ndarray): The world poses of the contact points.
-            contact_forces (np.ndarray): The contact forces in local frame reported by rigidprimview.
+            dt (float): Time step for dust physics simulation.
         """
         world_positions = []
         world_orientations = []
         contact_forces = []
+        wheel_velocities = []
+
         for rrg in self.robotManager.robots_RG.values():
             position, orientation = rrg.get_pose()
             world_positions.append(position)
             world_orientations.append(orientation)
             contact_forces.append(rrg.get_net_contact_forces())
+
+            # Get wheel velocities for dust emission
+            linear_vel, angular_vel = rrg.get_velocities()
+            wheel_velocities.append(linear_vel)
+
         world_positions = np.concatenate(world_positions, axis=0)
         world_orientations = np.concatenate(world_orientations, axis=0)
         contact_forces = np.concatenate(contact_forces, axis=0)
+        wheel_velocities = np.concatenate(wheel_velocities, axis=0)
 
         self.T.deformTerrain(
             world_positions,
             world_orientations,
             contact_forces,
         )
+
+        # Update dust physics
+        self.dust_manager.update(world_positions, wheel_velocities, contact_forces, dt)
+
         self.load_DEM()
         self.RM.updateImageData(self.dem, self.mask)
 
@@ -414,6 +449,8 @@ class LunalabController(BaseEnv):
         for rrg in self.robotManager.robots_RG.values():
             linear_velocities, angular_velocities = rrg.get_velocities()
             sinkages = np.zeros((linear_velocities.shape[0],))
-            force, torque = self.TS.compute_force_and_torque(linear_velocities, angular_velocities, sinkages)
+            force, torque = self.TS.compute_force_and_torque(
+                linear_velocities, angular_velocities, sinkages
+            )
             rrg.apply_force_torque(force, torque)
             rrg.apply_force_torque(force, torque)

@@ -1,5 +1,7 @@
 __author__ = "Antoine Richard"
-__copyright__ = "Copyright 2023, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+__copyright__ = (
+    "Copyright 2023, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+)
 __license__ = "GPL"
 __version__ = "1.0.0"
 __maintainer__ = "Antoine Richard"
@@ -36,18 +38,40 @@ class ROS_LunalabManager(ROS_BaseManager):
         super().__init__(environment_cfg=environment_cfg, **kwargs)
         self.LC = LunalabController(**environment_cfg)
         self.LC.load()
+        # Setup dust manager ROS publishers
+        self.LC.dust_manager.setup_ros(self)
         self.trigger_reset = False
 
-        self.create_subscription(Bool, "/OmniLRS/Projector/TurnOn", self.set_projector_on, 1)
-        self.create_subscription(Float32, "/OmniLRS/Projector/Intensity", self.set_projector_intensity, 1)
-        self.create_subscription(Float32, "/OmniLRS/Projector/Radius", self.set_projector_radius, 1)
-        self.create_subscription(Pose, "/OmniLRS/Projector/Pose", self.set_projector_pose, 1)
-        self.create_subscription(Bool, "/OmniLRS/CeilingLights/TurnOn", self.set_ceiling_on, 1)
-        self.create_subscription(Float32, "/OmniLRS/CeilingLights/Intensity", self.set_ceiling_intensity, 1)
-        self.create_subscription(Bool, "/OmniLRS/Curtains/Extend", self.set_curtains_mode, 1)
-        self.create_subscription(Int32, "/OmniLRS/Terrain/Switch", self.switch_terrain, 1)
-        self.create_subscription(Bool, "/OmniLRS/Terrain/EnableRocks", self.enable_rocks, 1)
-        self.create_subscription(Int32, "/OmniLRS/Terrain/RandomizeRocks", self.randomize_rocks, 1)
+        self.create_subscription(
+            Bool, "/OmniLRS/Projector/TurnOn", self.set_projector_on, 1
+        )
+        self.create_subscription(
+            Float32, "/OmniLRS/Projector/Intensity", self.set_projector_intensity, 1
+        )
+        self.create_subscription(
+            Float32, "/OmniLRS/Projector/Radius", self.set_projector_radius, 1
+        )
+        self.create_subscription(
+            Pose, "/OmniLRS/Projector/Pose", self.set_projector_pose, 1
+        )
+        self.create_subscription(
+            Bool, "/OmniLRS/CeilingLights/TurnOn", self.set_ceiling_on, 1
+        )
+        self.create_subscription(
+            Float32, "/OmniLRS/CeilingLights/Intensity", self.set_ceiling_intensity, 1
+        )
+        self.create_subscription(
+            Bool, "/OmniLRS/Curtains/Extend", self.set_curtains_mode, 1
+        )
+        self.create_subscription(
+            Int32, "/OmniLRS/Terrain/Switch", self.switch_terrain, 1
+        )
+        self.create_subscription(
+            Bool, "/OmniLRS/Terrain/EnableRocks", self.enable_rocks, 1
+        )
+        self.create_subscription(
+            Int32, "/OmniLRS/Terrain/RandomizeRocks", self.randomize_rocks, 1
+        )
 
     def periodic_update(self, dt: float) -> None:
         pass
@@ -79,7 +103,9 @@ class ROS_LunalabManager(ROS_BaseManager):
         default_intensity = 300000000.0
         data = default_intensity * float(data.data) / 100.0
         assert data >= 0, "The intensity must be greater than or equal to 0."
-        self.modifications.append([self.LC.set_projector_intensity, {"intensity": data}])
+        self.modifications.append(
+            [self.LC.set_projector_intensity, {"intensity": data}]
+        )
 
     def set_projector_radius(self, data: Float32) -> None:
         """
@@ -114,8 +140,18 @@ class ROS_LunalabManager(ROS_BaseManager):
         """
 
         position = (data.position.x, data.position.y, data.position.z)
-        orientation = (data.orientation.w, data.orientation.x, data.orientation.y, data.orientation.z)
-        self.modifications.append([self.LC.set_projector_pose, {"position": position, "orientation": orientation}])
+        orientation = (
+            data.orientation.w,
+            data.orientation.x,
+            data.orientation.y,
+            data.orientation.z,
+        )
+        self.modifications.append(
+            [
+                self.LC.set_projector_pose,
+                {"position": position, "orientation": orientation},
+            ]
+        )
 
     def set_ceiling_on(self, data: Bool) -> None:
         """
@@ -125,7 +161,9 @@ class ROS_LunalabManager(ROS_BaseManager):
             data (Bool): True to turn the lights on, False to turn them off.
         """
 
-        self.modifications.append([self.LC.turn_room_lights_on_off, {"flag": data.data}])
+        self.modifications.append(
+            [self.LC.turn_room_lights_on_off, {"flag": data.data}]
+        )
 
     def set_ceiling_intensity(self, data: Float32) -> None:
         """
@@ -136,7 +174,9 @@ class ROS_LunalabManager(ROS_BaseManager):
         """
 
         assert data.data >= 0, "The intensity must be greater than or equal to 0."
-        self.modifications.append([self.LC.set_room_lights_intensity, {"intensity": data.data}])
+        self.modifications.append(
+            [self.LC.set_room_lights_intensity, {"intensity": data.data}]
+        )
 
     def set_ceiling_radius(self, data: Float32) -> None:
         """
@@ -147,7 +187,9 @@ class ROS_LunalabManager(ROS_BaseManager):
         """
 
         assert data.data > 0.0, "Radius must be greater than 0.0"
-        self.modifications.append([self.LC.set_room_lights_radius, {"radius": data.data}])
+        self.modifications.append(
+            [self.LC.set_room_lights_radius, {"radius": data.data}]
+        )
 
     def set_ceiling_FOV(self, data: Float32) -> None:
         """
