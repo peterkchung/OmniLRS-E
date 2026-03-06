@@ -160,6 +160,12 @@ terrain_manager:
       dust_density_topic: "/dust/density_map"
       dust_visibility_topic: "/dust/visibility"
       publish_rate: 10.0 # Hz
+      
+      # Sensor degradation effects
+      enable_sensor_effects: True
+      lidar_dust_noise_scale: 1.0 # Scale factor for LiDAR noise (0.0 to disable)
+      camera_dust_haze_scale: 1.0 # Scale factor for camera haze (0.0 to disable)
+      imu_dust_vibration_scale: 1.0 # Scale factor for IMU vibration (0.0 to disable)
 
     is_yard: False
     is_lab: True

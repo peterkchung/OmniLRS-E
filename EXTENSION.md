@@ -31,7 +31,9 @@ src/environments/dust_physics/
 ├── dust_emitter.py          - Wheel contact detection & emission (~172 lines)
 ├── dust_dynamics.py         - Particle physics (ballistic + drag + cohesion) (~229 lines)
 ├── dust_particle.py         - Particle data structure (~180 lines)
-└── dust_visualization.py    - IsaacSim rendering interface (~158 lines)
+├── dust_visualization.py    - IsaacSim rendering interface (~158 lines)
+├── dust_ros_publishers.py   - ROS2 topic publishing (~243 lines)
+└── dust_sensor_effects.py   - Sensor degradation effects (~270 lines)
 ```
 
 **Physics Model:**
@@ -66,11 +68,71 @@ terrain_manager:
 
 **Development Phases:**
 - **Phase 1** ✅: Foundation (config, dataclass, module structure) - *COMPLETE*
-- **Phase 2**: Core physics implementation (emitters, dynamics, visualization)
-- **Phase 3**: Environment integration (LunalabController hooks)
-- **Phase 4**: ROS2 sensor integration (LiDAR scatter, camera noise)
+- **Phase 2** ✅: Core physics implementation (emitters, dynamics, visualization) - *COMPLETE*
+- **Phase 3** ✅: Environment integration (LunalabController hooks) - *COMPLETE*
+- **Phase 4** ✅: ROS2 sensor integration (LiDAR scatter, camera noise, IMU vibration) - *COMPLETE*
 
-**References:**
+**Sensor Effects Implementation:**
+
+The `dust_sensor_effects.py` module provides perception degradation for ROS2 sensor pipelines:
+
+**LiDAR Effects** (`apply_lidar_effects`):
+- Point dropout in high dust regions (up to 15%)
+- Range noise proportional to dust density (up to 2cm)
+- Intensity reduction due to scattering (up to 30%)
+- False positive points from dust reflections
+
+**Camera Effects** (`apply_camera_effects`):
+- Atmospheric haze/fog based on dust density in view frustum
+- Contrast reduction (up to 40%)
+- Color shift toward lunar regolith tan/grey
+- Temporal accumulation for smooth transitions
+
+**IMU Effects** (`apply_imu_effects`):
+- High-frequency vibration noise from particle impacts
+- Amplitude scales with robot velocity and dust density
+- Temporal correlation for realistic vibration patterns
+- Separate scaling for linear acceleration and angular velocity
+
+**Configuration:**
+```yaml
+terrain_manager:
+  moon_yard:
+    dust_physics:
+      # ... core physics params ...
+      
+      # Sensor degradation effects
+      enable_sensor_effects: True
+      lidar_dust_noise_scale: 1.0      # Scale factor (0.0 to disable)
+      camera_dust_haze_scale: 1.0      # Scale factor (0.0 to disable)
+      imu_dust_vibration_scale: 1.0    # Scale factor (0.0 to disable)
+```
+
+**API Usage:**
+```python
+# Register sensors for dust effects
+dust_manager.sensor_effects.register_sensor(
+    sensor_id="lidar_main",
+    position=[1.0, 0.0, 0.5],
+    orientation=[0.0, 0.0, 0.0, 1.0],  # Quaternion [x, y, z, w]
+    sensor_type="lidar"
+)
+
+# Apply effects to sensor data
+modified_points, modified_intensities = \
+    dust_manager.sensor_effects.apply_lidar_effects(
+        "lidar_main", points, intensities, particles
+    )
+
+modified_image = dust_manager.sensor_effects.apply_camera_effects(
+    "camera_main", image, particles, dt
+)
+
+modified_accel, modified_gyro = \
+    dust_manager.sensor_effects.apply_imu_effects(
+        "imu_main", accel, gyro, particles, robot_velocity
+    )
+```
 - Batagoda, N.M. (2025). "A physics-based simulation environment for lunar rover operations." MS Thesis, UW-Madison.
 - Wang et al. (2022). "Investigating Particle-Particle Electrostatic Effects on Charged Lunar Dust Transport via Discrete Element Modeling." Advances in Space Research.
 - "A Physics-Based Sensor Simulation Environment for Lunar Ground Operations" (2025 IEEE Aerospace Conference)
@@ -137,23 +199,32 @@ cfg/environment/
 ```
 src/environments/dust_physics/
 ├── __init__.py                  - Module exports and docs
-├── dust_manager.py              - Main orchestrator (~226 lines)
+├── dust_manager.py              - Main orchestrator (~350 lines)
 ├── dust_emitter.py              - Wheel contact detection (~172 lines)
 ├── dust_dynamics.py             - Particle physics (~229 lines)
 ├── dust_particle.py             - Particle data structure (~180 lines)
-└── dust_visualization.py        - IsaacSim rendering (~158 lines)
+├── dust_visualization.py        - IsaacSim rendering (~158 lines)
+├── dust_ros_publishers.py       - ROS2 topic publishing (~243 lines)
+└── dust_sensor_effects.py       - Sensor degradation effects (~270 lines)
 ```
 
 ### Configuration Classes
 ```
 src/configurations/
 ├── __init__.py                  - Added DustPhysicsConf export & registration
-└── procedural_terrain_confs.py  - Added DustPhysicsConf class (~105 lines)
+└── procedural_terrain_confs.py  - Added DustPhysicsConf class (~120 lines)
+```
+
+### Test Suite
+```
+tests/
+└── test_dust_physics.py         - Comprehensive test suite (~650 lines)
 ```
 
 **Lines Added:**
-- YAML config: 190 lines
-- Module structure: 1008 lines
-- Configuration classes: 177 lines
-- Documentation: ~65 lines
-- **Total: ~1,440 lines**
+- YAML config: 200 lines
+- Dust physics module: 1,802 lines
+- Test suite: 650 lines
+- Configuration classes: 190 lines
+- Documentation: ~120 lines
+- **Total: ~2,962 lines**

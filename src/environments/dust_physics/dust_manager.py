@@ -16,6 +16,7 @@ Pattern follows DeformationEngine from terrain_management module.
 
 from typing import Dict, List, Optional, Tuple
 import numpy as np
+import time
 
 from src.configurations.procedural_terrain_confs import DustPhysicsConf
 from src.environments.dust_physics.dust_emitter import DustEmitter
@@ -23,6 +24,7 @@ from src.environments.dust_physics.dust_dynamics import DustDynamics
 from src.environments.dust_physics.dust_particle import DustParticle
 from src.environments.dust_physics.dust_visualization import DustVisualization
 from src.environments.dust_physics.dust_ros_publishers import DustROSPublishers
+from src.environments.dust_physics.dust_sensor_effects import DustSensorEffects
 
 
 class DustManager:
@@ -53,6 +55,7 @@ class DustManager:
         self.dynamics: Optional[DustDynamics] = None
         self.visualization: Optional[DustVisualization] = None
         self.ros_publishers: Optional[DustROSPublishers] = None
+        self.sensor_effects: Optional[DustSensorEffects] = None
 
         # Particle system state
         self.particles: List = []
@@ -63,6 +66,18 @@ class DustManager:
         self.is_enabled: bool = settings.enable
         self.simulation_time: float = 0.0
         self.terrain_bounds: Optional[Tuple[float, float, float, float]] = None
+
+        # Performance profiling
+        self.enable_profiling: bool = False
+        self._profiling_data: Dict[str, List[float]] = {
+            "emission": [],
+            "dynamics": [],
+            "culling": [],
+            "visualization": [],
+            "ros_publish": [],
+            "total": [],
+        }
+        self._profiling_window: int = 100  # Keep last 100 measurements
 
     def setup(self) -> None:
         """
@@ -81,6 +96,7 @@ class DustManager:
         self.dynamics = DustDynamics(self.settings)
         self.visualization = DustVisualization(self.settings, self.world)
         self.ros_publishers = DustROSPublishers(self.settings)
+        self.sensor_effects = DustSensorEffects(self.settings)
 
         # Pre-allocate particle pool
         self._initialize_particle_pool()
@@ -133,31 +149,49 @@ class DustManager:
         if not self.is_enabled:
             return
 
+        total_start = time.time() if self.enable_profiling else 0
+
         self.simulation_time += dt
 
         # Step 1: Emission
+        emission_start = time.time() if self.enable_profiling else 0
         if self.emitter:
             new_particles = self.emitter.emit(
                 wheel_positions, wheel_velocities, wheel_forces, dt
             )
             self._add_particles(new_particles)
+        if self.enable_profiling:
+            self._profile_step("emission", emission_start)
 
         # Step 2: Dynamics
+        dynamics_start = time.time() if self.enable_profiling else 0
         if self.dynamics:
             self.dynamics.update(self.particles, dt)
+        if self.enable_profiling:
+            self._profile_step("dynamics", dynamics_start)
 
         # Step 3: Culling
+        culling_start = time.time() if self.enable_profiling else 0
         self._cull_expired_particles()
+        if self.enable_profiling:
+            self._profile_step("culling", culling_start)
 
         # Step 4: Visualization
+        viz_start = time.time() if self.enable_profiling else 0
         if self.visualization:
             self.visualization.update(self.particles)
+        if self.enable_profiling:
+            self._profile_step("visualization", viz_start)
 
         # Step 5: ROS2 publishing
+        ros_start = time.time() if self.enable_profiling else 0
         if self.ros_publishers:
             self.ros_publishers.update(
                 self.particles, self.simulation_time, self.terrain_bounds
             )
+        if self.enable_profiling:
+            self._profile_step("ros_publish", ros_start)
+            self._profile_step("total", total_start)
 
     def _add_particles(self, new_particles: List[DustParticle]) -> None:
         """
@@ -217,6 +251,9 @@ class DustManager:
         if self.visualization:
             self.visualization.clear()
 
+        if self.sensor_effects:
+            self.sensor_effects.reset()
+
     def get_dust_density(self, region: Optional[tuple] = None) -> np.ndarray:
         """
         Calculate dust density in specified region.
@@ -249,4 +286,73 @@ class DustManager:
         if self.ros_publishers:
             return self.ros_publishers._calculate_visibility(self.particles)
         return 1000.0  # Default clear visibility
-        pass
+
+    def _profile_step(self, step_name: str, start_time: float) -> None:
+        """
+        Record timing for a simulation step.
+
+        Args:
+            step_name (str): Name of the step being profiled.
+            start_time (float): Start time from time.time().
+        """
+        if not self.enable_profiling:
+            return
+
+        elapsed = (time.time() - start_time) * 1000.0  # Convert to ms
+
+        if step_name in self._profiling_data:
+            self._profiling_data[step_name].append(elapsed)
+            # Keep only last N measurements
+            if len(self._profiling_data[step_name]) > self._profiling_window:
+                self._profiling_data[step_name].pop(0)
+
+    def get_performance_stats(self) -> Dict[str, Dict[str, float]]:
+        """
+        Get performance statistics for dust physics simulation.
+
+        Returns:
+            Dict[str, Dict[str, float]]: Statistics for each step:
+                {
+                    "emission": {"mean_ms": X, "std_ms": Y, "max_ms": Z},
+                    "dynamics": {"mean_ms": X, "std_ms": Y, "max_ms": Z},
+                    ...
+                }
+        """
+        stats = {}
+
+        for step_name, timings in self._profiling_data.items():
+            if len(timings) > 0:
+                arr = np.array(timings)
+                stats[step_name] = {
+                    "mean_ms": float(np.mean(arr)),
+                    "std_ms": float(np.std(arr)),
+                    "min_ms": float(np.min(arr)),
+                    "max_ms": float(np.max(arr)),
+                    "count": len(timings),
+                }
+            else:
+                stats[step_name] = {
+                    "mean_ms": 0.0,
+                    "std_ms": 0.0,
+                    "min_ms": 0.0,
+                    "max_ms": 0.0,
+                    "count": 0,
+                }
+
+        return stats
+
+    def reset_performance_stats(self) -> None:
+        """Reset all performance profiling data."""
+        for key in self._profiling_data:
+            self._profiling_data[key] = []
+
+    def enable_performance_profiling(self, enabled: bool = True) -> None:
+        """
+        Enable or disable performance profiling.
+
+        Args:
+            enabled (bool): True to enable profiling, False to disable.
+        """
+        self.enable_profiling = enabled
+        if not enabled:
+            self.reset_performance_stats()

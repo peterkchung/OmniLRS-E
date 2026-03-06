@@ -98,6 +98,12 @@ class DustPhysicsConf:
     dust_visibility_topic: str = "/dust/visibility"
     publish_rate: float = 10.0
 
+    # Sensor degradation effects
+    enable_sensor_effects: bool = True
+    lidar_dust_noise_scale: float = 1.0
+    camera_dust_haze_scale: float = 1.0
+    imu_dust_vibration_scale: float = 1.0
+
     def __post_init__(self):
         assert type(self.enable) is bool, "enable must be a boolean"
         assert type(self.emission_rate) is int, "emission_rate must be an integer"
@@ -137,6 +143,20 @@ class DustPhysicsConf:
         )
         assert type(self.publish_rate) is float, "publish_rate must be a float"
 
+        # Sensor effects validation
+        assert type(self.enable_sensor_effects) is bool, (
+            "enable_sensor_effects must be a boolean"
+        )
+        assert type(self.lidar_dust_noise_scale) is float, (
+            "lidar_dust_noise_scale must be a float"
+        )
+        assert type(self.camera_dust_haze_scale) is float, (
+            "camera_dust_haze_scale must be a float"
+        )
+        assert type(self.imu_dust_vibration_scale) is float, (
+            "imu_dust_vibration_scale must be a float"
+        )
+
         assert self.emission_rate > 0, "emission_rate must be greater than 0"
         assert self.particle_lifetime > 0, "particle_lifetime must be greater than 0"
         assert self.particle_size_min > 0, "particle_size_min must be greater than 0"
@@ -167,6 +187,17 @@ class DustPhysicsConf:
             "particle_opacity must be between 0 and 1"
         )
         assert self.publish_rate > 0, "publish_rate must be greater than 0"
+
+        # Sensor effects range validation
+        assert self.lidar_dust_noise_scale >= 0, (
+            "lidar_dust_noise_scale must be greater than or equal to 0"
+        )
+        assert self.camera_dust_haze_scale >= 0, (
+            "camera_dust_haze_scale must be greater than or equal to 0"
+        )
+        assert self.imu_dust_vibration_scale >= 0, (
+            "imu_dust_vibration_scale must be greater than or equal to 0"
+        )
 
 
 @dataclasses.dataclass

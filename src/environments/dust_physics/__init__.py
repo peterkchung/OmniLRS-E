@@ -34,6 +34,7 @@ from src.environments.dust_physics.dust_dynamics import DustDynamics
 from src.environments.dust_physics.dust_particle import DustParticle
 from src.environments.dust_physics.dust_visualization import DustVisualization
 from src.environments.dust_physics.dust_ros_publishers import DustROSPublishers
+from src.environments.dust_physics.dust_sensor_effects import DustSensorEffects
 
 __all__ = [
     "DustManager",
@@ -42,4 +43,5 @@ __all__ = [
     "DustParticle",
     "DustVisualization",
     "DustROSPublishers",
+    "DustSensorEffects",
 ]
