@@ -108,3 +108,32 @@ Please use the following citations if you use `OmniLRS` in your work.
 │   └── terrain_management
 └── WorldBuilders
 ```
+
+## Extension File Tree (OmniLRS-E Additions)
+
+### Dust Physics System
+```
+cfg/environment/
+└── lunalab_dust_physics.yaml    - Dust physics environment config (190 lines)
+
+src/environments/dust_physics/
+├── __init__.py                  - Module exports and docs (45 lines)
+├── dust_manager.py              - Main orchestrator (~240 lines)
+├── dust_emitter.py              - Wheel contact detection (~172 lines)
+├── dust_dynamics.py             - Particle physics (~229 lines)
+├── dust_particle.py             - Particle data structure (~180 lines)
+├── dust_visualization.py        - IsaacSim rendering (~158 lines)
+└── dust_ros_publishers.py       - ROS2 publishers (~243 lines)
+```
+
+### Integration Points
+```
+src/environments/
+└── lunalab.py                   - DustManager integration
+
+src/environments_wrappers/ros2/
+└── lunalab_ros2.py              - ROS2 publisher setup
+```
+
+**Total Lines Added:** ~1,450 lines across 9 commits
+**Status:** Phase 1 & 2 Complete - Ready for testing
