@@ -2,6 +2,9 @@
 <img src="https://raw.githubusercontent.com/wiki/OmniLRS/OmniLRS/media/Logov2.png" width=520/>
 </center>
 
+> [!NOTE]  
+> **This is OmniLRS-E (Extended)** - an extended fork of the original OmniLRS simulator. This version serves as the testing platform for ROS2 perception pipelines in extreme environments, incorporating advanced physics including dust dynamics and terrain deformation based on University of Wisconsin-Madison research. See [EXTENSION.md](EXTENSION.md) for development details.
+
 Omniverse Lunar Robotics Simulator or OmniLRS, is a simulation tools developped jointly by the Space Robotics group from the University of Luxembourg (SpaceR), and the Space Robotics Lab from Tohoku University in Japan (SRL). We are now opening it to the community and strongly encourage Space Roboticists to help us grow the feature set of this simulation! Don't be shy shoot a PR!
 
 > [!IMPORTANT]
