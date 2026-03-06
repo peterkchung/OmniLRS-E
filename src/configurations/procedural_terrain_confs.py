@@ -1,5 +1,7 @@
 __author__ = "Antoine Richard"
-__copyright__ = "Copyright 2023-24, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+__copyright__ = (
+    "Copyright 2023-24, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+)
 __license__ = "BSD 3-Clause"
 __version__ = "2.0.0"
 __maintainer__ = "Antoine Richard"
@@ -32,7 +34,9 @@ class CraterGeneratorConf:
         assert type(self.z_scale) is float, "z_scale must be a float"
         assert type(self.seed) is int, "seed must be an integer"
 
-        assert self.min_xy_ratio <= self.max_xy_ratio, "min_xy_ratio must be smaller than max_xy_ratio"
+        assert self.min_xy_ratio <= self.max_xy_ratio, (
+            "min_xy_ratio must be smaller than max_xy_ratio"
+        )
         assert self.min_xy_ratio > 0, "min_xy_ratio must be greater than 0"
         assert self.max_xy_ratio > 0, "max_xy_ratio must be greater than 0"
         assert self.min_xy_ratio <= 1, "min_xy_ratio must be smaller than 1"
@@ -40,6 +44,129 @@ class CraterGeneratorConf:
         assert self.resolution > 0, "resolution must be greater than 0"
         assert self.pad_size >= 0, "pad_size must be greater or equal to 0"
         assert self.z_scale > 0, "z_scale must be greater than 0"
+
+
+@dataclasses.dataclass
+class DustPhysicsConf:
+    """
+    Dust physics simulation parameters for lunar regolith dust dynamics.
+
+    Implements particle-based dust emitters at wheel-terrain contact points
+    with ballistic trajectories, drag, and empirical cohesion effects.
+
+    Args:
+        enable (bool): Enable dust physics simulation.
+        emission_rate (int): Particles emitted per second per wheel.
+        particle_lifetime (float): Maximum lifetime of particles in seconds.
+        particle_size_min (float): Minimum particle size in meters (fine dust).
+        particle_size_max (float): Maximum particle size in meters (coarse).
+        particle_density (float): Particle density in kg/m^3 (lunar regolith).
+        gravity (list): Gravity vector [x, y, z] in m/s^2.
+        emission_velocity_threshold (float): Minimum slip velocity to trigger emission (m/s).
+        emission_force_threshold (float): Minimum contact force to trigger emission (N).
+        drag_coefficient (float): Drag coefficient for particle aerodynamics.
+        cohesion_strength (float): Empirical cohesion factor for lunar dust.
+        settling_velocity (float): Velocity threshold for particle settling (m/s).
+        max_particles (int): Maximum number of particles in the system.
+        particle_color (list): RGB color values [0-1] for dust visualization.
+        particle_opacity (float): Opacity value [0-1] for dust particles.
+        publish_dust_density (bool): Enable ROS2 dust density topic publication.
+        dust_density_topic (str): ROS2 topic name for dust density map.
+        dust_visibility_topic (str): ROS2 topic name for visibility estimates.
+        publish_rate (float): ROS2 publication rate in Hz.
+    """
+
+    enable: bool = False
+    emission_rate: int = 1000
+    particle_lifetime: float = 2.0
+    particle_size_min: float = 0.001
+    particle_size_max: float = 0.1
+    particle_density: float = 1500.0
+    gravity: List[float] = dataclasses.field(default_factory=lambda: [0.0, 0.0, -1.62])
+    emission_velocity_threshold: float = 0.1
+    emission_force_threshold: float = 50.0
+    drag_coefficient: float = 0.47
+    cohesion_strength: float = 0.01
+    settling_velocity: float = 0.5
+    max_particles: int = 50000
+    particle_color: List[float] = dataclasses.field(
+        default_factory=lambda: [0.7, 0.65, 0.6]
+    )
+    particle_opacity: float = 0.8
+    publish_dust_density: bool = True
+    dust_density_topic: str = "/dust/density_map"
+    dust_visibility_topic: str = "/dust/visibility"
+    publish_rate: float = 10.0
+
+    def __post_init__(self):
+        assert type(self.enable) is bool, "enable must be a boolean"
+        assert type(self.emission_rate) is int, "emission_rate must be an integer"
+        assert type(self.particle_lifetime) is float, (
+            "particle_lifetime must be a float"
+        )
+        assert type(self.particle_size_min) is float, (
+            "particle_size_min must be a float"
+        )
+        assert type(self.particle_size_max) is float, (
+            "particle_size_max must be a float"
+        )
+        assert type(self.particle_density) is float, "particle_density must be a float"
+        assert type(self.emission_velocity_threshold) is float, (
+            "emission_velocity_threshold must be a float"
+        )
+        assert type(self.emission_force_threshold) is float, (
+            "emission_force_threshold must be a float"
+        )
+        assert type(self.drag_coefficient) is float, "drag_coefficient must be a float"
+        assert type(self.cohesion_strength) is float, (
+            "cohesion_strength must be a float"
+        )
+        assert type(self.settling_velocity) is float, (
+            "settling_velocity must be a float"
+        )
+        assert type(self.max_particles) is int, "max_particles must be an integer"
+        assert type(self.particle_opacity) is float, "particle_opacity must be a float"
+        assert type(self.publish_dust_density) is bool, (
+            "publish_dust_density must be a boolean"
+        )
+        assert type(self.dust_density_topic) is str, (
+            "dust_density_topic must be a string"
+        )
+        assert type(self.dust_visibility_topic) is str, (
+            "dust_visibility_topic must be a string"
+        )
+        assert type(self.publish_rate) is float, "publish_rate must be a float"
+
+        assert self.emission_rate > 0, "emission_rate must be greater than 0"
+        assert self.particle_lifetime > 0, "particle_lifetime must be greater than 0"
+        assert self.particle_size_min > 0, "particle_size_min must be greater than 0"
+        assert self.particle_size_max > self.particle_size_min, (
+            "particle_size_max must be greater than particle_size_min"
+        )
+        assert self.particle_density > 0, "particle_density must be greater than 0"
+        assert len(self.gravity) == 3, "gravity must be a list of length 3"
+        assert self.emission_velocity_threshold >= 0, (
+            "emission_velocity_threshold must be greater than or equal to 0"
+        )
+        assert self.emission_force_threshold >= 0, (
+            "emission_force_threshold must be greater than or equal to 0"
+        )
+        assert self.drag_coefficient > 0, "drag_coefficient must be greater than 0"
+        assert self.cohesion_strength >= 0, (
+            "cohesion_strength must be greater than or equal to 0"
+        )
+        assert self.settling_velocity > 0, "settling_velocity must be greater than 0"
+        assert self.max_particles > 0, "max_particles must be greater than 0"
+        assert len(self.particle_color) == 3, (
+            "particle_color must be a list of length 3"
+        )
+        assert all(0 <= c <= 1 for c in self.particle_color), (
+            "particle_color values must be between 0 and 1"
+        )
+        assert 0 <= self.particle_opacity <= 1, (
+            "particle_opacity must be between 0 and 1"
+        )
+        assert self.publish_rate > 0, "publish_rate must be greater than 0"
 
 
 @dataclasses.dataclass
@@ -59,7 +186,9 @@ class CraterDistributionConf:
 
         assert self.x_size > 0, "x_size must be greater than 0"
         assert self.y_size > 0, "y_size must be greater than 0"
-        assert len(self.densities) == len(self.radius), "densities and radius must have the same length"
+        assert len(self.densities) == len(self.radius), (
+            "densities and radius must have the same length"
+        )
         assert self.num_repeat >= 0, "num_repeat must be greater or equal to 0"
 
 
@@ -85,7 +214,9 @@ class BaseTerrainGeneratorConf:
         assert self.x_size > 0, "x_size must be greater than 0"
         assert self.y_size > 0, "y_size must be greater than 0"
         assert self.resolution > 0, "resolution must be greater than 0"
-        assert self.max_elevation > self.min_elevation, "max_elevation must be greater than min_elevation"
+        assert self.max_elevation > self.min_elevation, (
+            "max_elevation must be greater than min_elevation"
+        )
         assert self.z_scale > 0, "z_scale must be greater than 0"
 
 
@@ -129,7 +260,9 @@ class DeformConstrainConf:
     def __post_init__(self):
         assert type(self.x_deform_offset) is float, "deform_offset must be a float"
         assert type(self.y_deform_offset) is float, "deform_offset must be a float"
-        assert type(self.deform_decay_ratio) is float, "deform_decay_ratio must be a float"
+        assert type(self.deform_decay_ratio) is float, (
+            "deform_decay_ratio must be a float"
+        )
         assert self.deform_decay_ratio > 0, "deform_decay_ratio must be greater than 0"
 
 
@@ -219,14 +352,20 @@ class DeformationEngineConf:
     gravity: List[float] = dataclasses.field(default_factory=list)
     footprint: FootprintConf = dataclasses.field(default_factory=dict)
     deform_constrain: DeformConstrainConf = dataclasses.field(default_factory=dict)
-    boundary_distribution: BoundaryDistributionConf = dataclasses.field(default_factory=dict)
+    boundary_distribution: BoundaryDistributionConf = dataclasses.field(
+        default_factory=dict
+    )
     depth_distribution: DepthDistributionConf = dataclasses.field(default_factory=dict)
-    force_depth_regression: ForceDepthRegressionConf = dataclasses.field(default_factory=dict)
+    force_depth_regression: ForceDepthRegressionConf = dataclasses.field(
+        default_factory=dict
+    )
     num_links: int = 4
 
     def __post_init__(self):
         assert type(self.delay) is float, "delay must be float"
-        assert type(self.terrain_resolution) is float, "terrain_resolution must be a float"
+        assert type(self.terrain_resolution) is float, (
+            "terrain_resolution must be a float"
+        )
         assert self.delay >= 0, "render_deform_inv must be greater than or equal to 1"
         assert self.terrain_resolution > 0, "terrain_resolution must be greater than 0"
         assert self.terrain_width > 0, "terrain_width must be greater than 0"
@@ -235,9 +374,13 @@ class DeformationEngineConf:
 
         self.footprint = FootprintConf(**self.footprint)
         self.deform_constrain = DeformConstrainConf(**self.deform_constrain)
-        self.boundary_distribution = BoundaryDistributionConf(**self.boundary_distribution)
+        self.boundary_distribution = BoundaryDistributionConf(
+            **self.boundary_distribution
+        )
         self.depth_distribution = DepthDistributionConf(**self.depth_distribution)
-        self.force_depth_regression = ForceDepthRegressionConf(**self.force_depth_regression)
+        self.force_depth_regression = ForceDepthRegressionConf(
+            **self.force_depth_regression
+        )
 
 
 @dataclasses.dataclass
@@ -246,14 +389,18 @@ class MoonYardConf:
     crater_distribution: CraterDistributionConf = None
     base_terrain_generator: BaseTerrainGeneratorConf = None
     deformation_engine: DeformationEngineConf = None
+    dust_physics: DustPhysicsConf = None
     is_yard: bool = dataclasses.field(default_factory=bool)
     is_lab: bool = dataclasses.field(default_factory=bool)
 
     def __post_init__(self):
         self.crater_generator = CraterGeneratorConf(**self.crater_generator)
         self.crater_distribution = CraterDistributionConf(**self.crater_distribution)
-        self.base_terrain_generator = BaseTerrainGeneratorConf(**self.base_terrain_generator)
+        self.base_terrain_generator = BaseTerrainGeneratorConf(
+            **self.base_terrain_generator
+        )
         self.deformation_engine = DeformationEngineConf(**self.deformation_engine)
+        self.dust_physics = DustPhysicsConf(**self.dust_physics)
 
         assert type(self.is_yard) is bool, "is_yard must be a boolean"
         assert type(self.is_lab) is bool, "is_lab must be a boolean"
@@ -284,7 +431,9 @@ class TerrainManagerConf:
         assert type(self.resolution) is float, "resolution must be a float"
 
         assert len(self.mesh_position) == 3, "mesh_position must be a tuple of length 3"
-        assert len(self.mesh_orientation) == 4, "mesh_orientation must be a tuple of length 4"
+        assert len(self.mesh_orientation) == 4, (
+            "mesh_orientation must be a tuple of length 4"
+        )
         assert len(self.mesh_scale) == 3, "mesh_scale must be a tuple of length 3"
         assert self.sim_length > 0, "sim_length must be greater than 0"
         assert self.sim_width > 0, "sim_width must be greater than 0"

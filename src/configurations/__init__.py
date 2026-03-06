@@ -1,5 +1,7 @@
 __author__ = "Antoine Richard"
-__copyright__ = "Copyright 2023-24, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+__copyright__ = (
+    "Copyright 2023-24, Space Robotics Lab, SnT, University of Luxembourg, SpaceR"
+)
 __license__ = "BSD 3-Clause"
 __version__ = "2.0.0"
 __maintainer__ = "Antoine Richard"
@@ -27,9 +29,19 @@ from src.configurations.procedural_terrain_confs import (
     CraterDistributionConf,
     BaseTerrainGeneratorConf,
     DeformationEngineConf,
+    DustPhysicsConf,
 )
-from src.configurations.rendering_confs import FlaresConf, RendererConf, MotionBlurConf, ChromaticAberrationsConf
-from src.configurations.environments import LunalabConf, LunaryardConf, LargeScaleTerrainConf
+from src.configurations.rendering_confs import (
+    FlaresConf,
+    RendererConf,
+    MotionBlurConf,
+    ChromaticAberrationsConf,
+)
+from src.configurations.environments import (
+    LunalabConf,
+    LunaryardConf,
+    LargeScaleTerrainConf,
+)
 from src.configurations.auto_labeling_confs import AutoLabelingConf, CameraConf
 from src.configurations.stellar_engine_confs import StellarEngineConf, SunConf
 from src.configurations.physics_confs import PhysicsSceneConf
@@ -57,6 +69,7 @@ configFactory.registerConfig("crater_generator", CraterGeneratorConf)
 configFactory.registerConfig("crater_distribution", CraterDistributionConf)
 configFactory.registerConfig("base_terrain_generator", BaseTerrainGeneratorConf)
 configFactory.registerConfig("deformation_engine", DeformationEngineConf)
+configFactory.registerConfig("dust_physics", DustPhysicsConf)
 # Rendering Configs
 configFactory.registerConfig("chromatic_aberrations", ChromaticAberrationsConf)
 configFactory.registerConfig("motion_blur", MotionBlurConf)
