@@ -14,7 +14,7 @@ and interfaces with the environment controller (Lunalab/Lunaryard).
 Pattern follows DeformationEngine from terrain_management module.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from src.configurations.procedural_terrain_confs import DustPhysicsConf
@@ -22,6 +22,7 @@ from src.environments.dust_physics.dust_emitter import DustEmitter
 from src.environments.dust_physics.dust_dynamics import DustDynamics
 from src.environments.dust_physics.dust_particle import DustParticle
 from src.environments.dust_physics.dust_visualization import DustVisualization
+from src.environments.dust_physics.dust_ros_publishers import DustROSPublishers
 
 
 class DustManager:
@@ -51,15 +52,17 @@ class DustManager:
         self.emitter: Optional[DustEmitter] = None
         self.dynamics: Optional[DustDynamics] = None
         self.visualization: Optional[DustVisualization] = None
+        self.ros_publishers: Optional[DustROSPublishers] = None
 
         # Particle system state
-        self.particles: List[DustParticle] = []
+        self.particles: List = []
         self.active_particle_count: int = 0
-        self.particle_pool: np.ndarray = None  # Pre-allocated GPU/CPU array
+        self.particle_pool: List = []
 
         # Simulation state
         self.is_enabled: bool = settings.enable
         self.simulation_time: float = 0.0
+        self.terrain_bounds: Optional[Tuple[float, float, float, float]] = None
 
     def setup(self) -> None:
         """
@@ -77,9 +80,20 @@ class DustManager:
         self.emitter = DustEmitter(self.settings)
         self.dynamics = DustDynamics(self.settings)
         self.visualization = DustVisualization(self.settings, self.world)
+        self.ros_publishers = DustROSPublishers(self.settings)
 
         # Pre-allocate particle pool
         self._initialize_particle_pool()
+
+    def setup_ros(self, node) -> None:
+        """
+        Setup ROS2 publishers.
+
+        Args:
+            node: ROS2 node to create publishers on.
+        """
+        if self.ros_publishers and self.is_enabled:
+            self.ros_publishers.setup(node)
 
     def _initialize_particle_pool(self) -> None:
         """
@@ -122,13 +136,15 @@ class DustManager:
         self.simulation_time += dt
 
         # Step 1: Emission
-        new_particles = self.emitter.emit(
-            wheel_positions, wheel_velocities, wheel_forces, dt
-        )
-        self._add_particles(new_particles)
+        if self.emitter:
+            new_particles = self.emitter.emit(
+                wheel_positions, wheel_velocities, wheel_forces, dt
+            )
+            self._add_particles(new_particles)
 
         # Step 2: Dynamics
-        self.dynamics.update(self.particles, dt)
+        if self.dynamics:
+            self.dynamics.update(self.particles, dt)
 
         # Step 3: Culling
         self._cull_expired_particles()
@@ -138,7 +154,10 @@ class DustManager:
             self.visualization.update(self.particles)
 
         # Step 5: ROS2 publishing
-        # TODO: Implement ROS2 publishers for density/visibility
+        if self.ros_publishers:
+            self.ros_publishers.update(
+                self.particles, self.simulation_time, self.terrain_bounds
+            )
 
     def _add_particles(self, new_particles: List[DustParticle]) -> None:
         """
@@ -209,8 +228,13 @@ class DustManager:
         Returns:
             np.ndarray: 2D density map (particles per cell).
         """
-        # TODO: Implement density grid calculation
-        pass
+        if region is None and self.terrain_bounds is None:
+            return np.array([])
+
+        bounds = region if region else self.terrain_bounds
+        if self.ros_publishers and bounds is not None:
+            return self.ros_publishers._calculate_density_map(self.particles, bounds)
+        return np.array([])
 
     def get_visibility_estimate(self, position: np.ndarray) -> float:
         """
@@ -222,5 +246,7 @@ class DustManager:
         Returns:
             float: Visibility range in meters (decreases with dust density).
         """
-        # TODO: Implement visibility calculation based on particle density
+        if self.ros_publishers:
+            return self.ros_publishers._calculate_visibility(self.particles)
+        return 1000.0  # Default clear visibility
         pass
